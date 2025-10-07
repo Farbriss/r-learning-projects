@@ -92,51 +92,61 @@ WARUM das nützlich ist:
 
 ## 1.2 Fortgeschrittenes Grouping und Summarizing
 
-Konzept: `group_by()` + `summarise()` ist das Herzstück der deskriptiven Statistik. Wir berechnen Kennzahlen für jede Gruppe separat.
+### Gruppierte deskriptive Statistiken mit `group_by()` und `summarise()`
 
-Komplexe group_by() und summarise() Operationen
+Die Kombination aus `group_by()` und `summarise()` ist das Herzstück der gruppierten Datenanalyse im tidyverse. Während `group_by()` den Datensatz in Untergruppen aufteilt (hier nach jeder Kombination aus Pinguinart und Insel), berechnet `summarise()` für jede dieser Gruppen separate statistische Kennzahlen und erzeugt dabei ein **neues, kompaktes Dataframe**. 
+
+Im Gegensatz zu `mutate()`, das neue Spalten zum bestehenden Datensatz hinzufügt und alle ursprünglichen Zeilen beibehält, reduziert `summarise()` die Datenstruktur drastisch: Aus den ursprünglich 344 Pinguinbeobachtungen entstehen nur noch wenige Zeilen – eine pro Gruppe (Art-Insel-Kombination) – mit den berechneten Zusammenfassungen als neue Spalten.
+
+Der Code berechnet zunächst grundlegende deskriptive Statistiken wie Mittelwerte, Mediane und Standardabweichungen für jede Gruppe. Besonders wichtig ist dabei der Parameter `na.rm = TRUE`, der fehlende Werte aus den Berechnungen ausschließt. Zusätzlich werden Quantile (25% und 75%) berechnet, die später für die Bestimmung des Interquartilsabstands verwendet werden und wichtige Informationen über die Verteilung der Daten liefern.
+
+Die Anteilsberechnung `prop_female` zeigt eine clevere Anwendung logischer Operationen: `sum(sex == "female", na.rm = TRUE)` zählt alle TRUE-Werte (also alle Weibchen), während `sum(!is.na(sex))` die Anzahl aller Beobachtungen mit bekanntem Geschlecht ermittelt. Der Parameter `.groups = "drop"` am Ende des `summarise()`-Blocks ist wichtig, da er die Gruppierung wieder aufhebt und verhindert, dass nachfolgende Operationen unbeabsichtigt noch gruppiert ausgeführt werden.
+
+Im anschließenden `mutate()`-Schritt werden aus den bereits berechneten Kennzahlen weitere aussagekräftige Variablen abgeleitet: Der Interquartilsabstand (`mass_range`) als Maß für die Streuung innerhalb jeder Gruppe, ein Variationskoeffizient zur relativen Einordnung der Variabilität und eine kategorische Einteilung der Stichprobengrößen. Das finale `arrange()` und `select()` sorgt für eine übersichtliche Darstellung der wichtigsten Ergebnisse, sortiert nach dem durchschnittlichen Körpergewicht der Gruppen.
+
+Diese Analysestrategie ist fundamental für die explorative Datenanalyse, da sie systematische Unterschiede zwischen Subpopulationen aufdeckt und die Basis für weiterführende statistische Tests oder Visualisierungen bildet.
+
 ```{r}
+# Gruppierte Statistik: Nach Art UND Insel zusammenfassen
 penguin_stats <- penguins %>%
-  # Gruppiere nach Art UND Insel (Kreuzklassifikation)
-  group_by(species, island) %>%
+  group_by(species, island) %>%    # Gruppierung: Jede Kombination aus Art & Insel ist eine Gruppe
   summarise(
-    # BASIS-STATISTIKEN
-    count = n(),                                          # Anzahl Beobachtungen
-    mean_body_mass = mean(body_mass_g, na.rm = TRUE),    # na.rm = TRUE ignoriert fehlende Werte
-    median_flipper = median(flipper_length_mm, na.rm = TRUE),
-    sd_bill_length = sd(bill_length_mm, na.rm = TRUE),   # Standardabweichung
+    # Basisstatistiken
+    count = n(),                        # Anzahl Beobachtungen in der Gruppe
+    mean_body_mass = mean(body_mass_g, na.rm = TRUE),    # Durchschnittliches Körpergewicht (ignoriert NA)
+    median_flipper = median(flipper_length_mm, na.rm = TRUE), # Median Flossenlänge (ignoriert NA)
+    sd_bill_length = sd(bill_length_mm, na.rm = TRUE),   # Standardabweichung Schnabellänge (ignoriert NA)
     
-    # QUANTILE (wichtig für Box-Plots und Ausreißer-Erkennung)
-    q25_mass = quantile(body_mass_g, 0.25, na.rm = TRUE),  # 1. Quartil
-    q75_mass = quantile(body_mass_g, 0.75, na.rm = TRUE),  # 3. Quartil
+    # Quantile: Nützlich für Boxplots und Ausreißer-Erkennung
+    q25_mass = quantile(body_mass_g, 0.25, na.rm = TRUE), # 25%-Quantil (unteres Viertel)
+    q75_mass = quantile(body_mass_g, 0.75, na.rm = TRUE), # 75%-Quantil (oberes Viertel)
     
-    # MIN/MAX
-    min_bill_depth = min(bill_depth_mm, na.rm = TRUE),
-    max_bill_depth = max(bill_depth_mm, na.rm = TRUE),
+    # Minimum / Maximum
+    min_bill_depth = min(bill_depth_mm, na.rm = TRUE),    # Kleinster Schnabel-Tiefenwert
+    max_bill_depth = max(bill_depth_mm, na.rm = TRUE),    # Größter Schnabel-Tiefenwert
     
-    # ANTEILSBERECHNUNGEN
-    # sum(logical) zählt TRUE-Werte
+    # Anteil Weibchen (TRUE = weiblich, NA werden ignoriert)
     prop_female = sum(sex == "female", na.rm = TRUE) / sum(!is.na(sex)),
     
-    # WEITERE STATISTISCHE MAßE
-    var_mass = var(body_mass_g, na.rm = TRUE),           # Varianz
+    # Weitere Statistik: Varianz des Körpergewichts
+    var_mass = var(body_mass_g, na.rm = TRUE),           # Streuung des Gewichts
     
-    .groups = "drop"  # WICHTIG: Entfernt Gruppierung nach summarise()
+    .groups = "drop"      # Gruppierung nach dem summarise entfernen (damit Folgefunktionen normal arbeiten)
   ) %>%
-  # WEITERE BERECHNUNGEN nach dem Summarise
+  # Neue Variablen aus Ergebnissen berechnen
   mutate(
-    mass_range = q75_mass - q25_mass,                    # Interquartilsabstand (IQR)
-    cv_bill_length = sd_bill_length / mean_body_mass,    # Variationskoeffizient
-    sample_size_category = case_when(
+    mass_range = q75_mass - q25_mass,              # Interquartilsabstand = mittlere Streuung des Gewichts
+    cv_bill_length = sd_bill_length / mean_body_mass,  # Variationskoeffizient: relative Streuung Schnabellänge
+    sample_size_category = case_when(              # Gruppengröße klassifizieren
       count < 50 ~ "Small sample",
       count < 100 ~ "Medium sample", 
       TRUE ~ "Large sample"
     )
   )
 
-# Ergebnisse anschauen - sortiert nach Körpermasse
+# Ergebnisse ansehen: Sortieren nach mittlerem Gewicht, nur wichtige Spalten anzeigen
 penguin_stats %>%
-  arrange(desc(mean_body_mass)) %>%
+  arrange(desc(mean_body_mass)) %>%    # Größte Durchschnittsgewichte zuerst zeigen
   select(species, island, count, mean_body_mass, mass_range, prop_female)
 
 # INTERPRETATION der Ergebnisse:
