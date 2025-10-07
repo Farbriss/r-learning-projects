@@ -1,0 +1,89 @@
+---
+title: "Advanced tidyverse Übungen"
+author: "Fabrice Keller"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+Lernziele:
+
+- Komplexe Datenmanipulationen mit dplyr
+- Erweiterte Visualisierungen mit ggplot2
+- Daten-Pivoting und String-Operationen
+- Funktionale Programmierung Grundlagen
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Laden der nötigen Packages für diese Session
+```{r}
+library(tidyverse)       # Meta-Package: dplyr, ggplot2, tidyr, stringr etc.
+library(palmerpenguins)  # Saubere Beispieldaten für Ökologie/Biologie
+library(nycflights13)    # Flugdaten mit datetime, joins etc.
+library(lubridate)       # Einfache Datums-/Zeitmanipulation
+```
+Überprüfe, welche Pakete geladen sind
+```{r}
+sessionInfo()
+```
+
+# Block 1: Fortgeschrittene dplyr-Operationen
+
+## 1.1 Komplexe Mutate-Operationen
+
+Konzept: `mutate()` erstellt neue Spalten basierend auf bestehenden Daten. Mit `case_when()` können wir komplexe bedingte Logik implementieren.
+
+Dataset erkunden
+```{r}
+glimpse(penguins)  # Zeigt Datentypen und erste Werte
+summary(penguins)  # Statistische Übersicht
+```
+Schaue dir die ersten Zeilen an
+```{r}
+head(penguins, 10)
+```
+
+Erweiterte mutate() Funktionen
+```{r}
+penguins_advanced <- penguins %>%
+  mutate(
+    # CONDITIONAL LOGIC mit case_when()
+    # Syntax: case_when(Bedingung ~ Ergebnis, TRUE ~ Default)
+    size_category = case_when(
+      body_mass_g < 3000 ~ "Small",      # Wenn Masse < 3000g
+      body_mass_g < 4500 ~ "Medium",     # Sonst wenn < 4500g  
+      body_mass_g < 6000 ~ "Large",      # Sonst wenn < 6000g
+      TRUE ~ "Extra Large"               # Alle anderen Fälle
+    ),
+    
+    # NUMERISCHE BERECHNUNGEN
+    # Ratio-Berechnungen helfen, Proportionen zwischen Körperteilen zu verstehen
+    bill_ratio = bill_length_mm / bill_depth_mm,
+    flipper_body_ratio = flipper_length_mm / body_mass_g * 1000,  # *1000 für bessere Lesbarkeit
+    
+    # STRING-MANIPULATION
+    # paste() verbindet Strings, str_sub() extrahiert Teilstrings
+    species_island = paste(species, island, sep = "_"),
+    species_short = str_sub(species, 1, 3),  # Erste 3 Buchstaben
+    
+    # STANDARDISIERUNG UND TRANSFORMATION
+    body_mass_kg = body_mass_g / 1000,                    # Einheitenkonversion
+    body_mass_scaled = as.vector(scale(body_mass_g)),     # Z-Score (Mittelwert=0, SD=1)
+    
+    # RANKING innerhalb von Gruppen (wird später nützlich)
+    mass_rank = dense_rank(desc(body_mass_g))  # 1 = schwerster Pinguin
+  )
+
+# Schaue dir die neuen Spalten an
+penguins_advanced %>% 
+  select(species, body_mass_g, size_category, bill_ratio, body_mass_scaled) %>%
+  head(10)
+```
+WARUM das nützlich ist:
+
+- size_category: Kategorisierung für Gruppierungen und Plots
+- Ratios: Wichtig für allometrische Analysen in der Biologie
+- Scaling: Nötig für Machine Learning und statistische Analysen
