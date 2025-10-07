@@ -47,6 +47,7 @@ head(penguins, 10)
 ```
 
 Erweiterte mutate() Funktionen
+mutate fügt zusätzliche Spalten an einen dataframe an
 ```{r}
 penguins_advanced <- penguins %>%
   mutate(
@@ -78,6 +79,7 @@ penguins_advanced <- penguins %>%
   )
 
 # Schaue dir die neuen Spalten an
+# mit select() kann man ein subset eines dataframes auswählen
 penguins_advanced %>% 
   select(species, body_mass_g, size_category, bill_ratio, body_mass_scaled) %>%
   head(10)
@@ -87,3 +89,66 @@ WARUM das nützlich ist:
 - size_category: Kategorisierung für Gruppierungen und Plots
 - Ratios: Wichtig für allometrische Analysen in der Biologie
 - Scaling: Nötig für Machine Learning und statistische Analysen
+
+## 1.2 Fortgeschrittenes Grouping und Summarizing
+
+Konzept: `group_by()` + `summarise()` ist das Herzstück der deskriptiven Statistik. Wir berechnen Kennzahlen für jede Gruppe separat.
+
+Komplexe group_by() und summarise() Operationen
+```{r}
+penguin_stats <- penguins %>%
+  # Gruppiere nach Art UND Insel (Kreuzklassifikation)
+  group_by(species, island) %>%
+  summarise(
+    # BASIS-STATISTIKEN
+    count = n(),                                          # Anzahl Beobachtungen
+    mean_body_mass = mean(body_mass_g, na.rm = TRUE),    # na.rm = TRUE ignoriert fehlende Werte
+    median_flipper = median(flipper_length_mm, na.rm = TRUE),
+    sd_bill_length = sd(bill_length_mm, na.rm = TRUE),   # Standardabweichung
+    
+    # QUANTILE (wichtig für Box-Plots und Ausreißer-Erkennung)
+    q25_mass = quantile(body_mass_g, 0.25, na.rm = TRUE),  # 1. Quartil
+    q75_mass = quantile(body_mass_g, 0.75, na.rm = TRUE),  # 3. Quartil
+    
+    # MIN/MAX
+    min_bill_depth = min(bill_depth_mm, na.rm = TRUE),
+    max_bill_depth = max(bill_depth_mm, na.rm = TRUE),
+    
+    # ANTEILSBERECHNUNGEN
+    # sum(logical) zählt TRUE-Werte
+    prop_female = sum(sex == "female", na.rm = TRUE) / sum(!is.na(sex)),
+    
+    # WEITERE STATISTISCHE MAßE
+    var_mass = var(body_mass_g, na.rm = TRUE),           # Varianz
+    
+    .groups = "drop"  # WICHTIG: Entfernt Gruppierung nach summarise()
+  ) %>%
+  # WEITERE BERECHNUNGEN nach dem Summarise
+  mutate(
+    mass_range = q75_mass - q25_mass,                    # Interquartilsabstand (IQR)
+    cv_bill_length = sd_bill_length / mean_body_mass,    # Variationskoeffizient
+    sample_size_category = case_when(
+      count < 50 ~ "Small sample",
+      count < 100 ~ "Medium sample", 
+      TRUE ~ "Large sample"
+    )
+  )
+
+# Ergebnisse anschauen - sortiert nach Körpermasse
+penguin_stats %>%
+  arrange(desc(mean_body_mass)) %>%
+  select(species, island, count, mean_body_mass, mass_range, prop_female)
+
+# INTERPRETATION der Ergebnisse:
+print("Interpretationshilfen:")
+print("- Gentoo-Pinguine sind im Durchschnitt am schwersten")
+print("- mass_range zeigt die Variabilität innerhalb jeder Art/Insel-Kombination")
+print("- prop_female zeigt Geschlechterverteilung (sollte ~0.5 sein)")
+
+```
+
+WARUM das wichtig ist:
+
+- Deskriptive Statistik ist Grundlage jeder Datenanalyse
+- Gruppierte Analysen decken Unterschiede zwischen Subpopulationen auf
+- Diese Kennzahlen sind Basis für statistische Tests
