@@ -41,7 +41,7 @@ Dataset erkunden
 glimpse(penguins)  # Zeigt Datentypen und erste Werte
 summary(penguins)  # Statistische Übersicht
 ```
-Schaue dir die ersten Zeilen an
+Die ersten Zeilen anschauen
 ```{r}
 head(penguins, 10)
 ```
