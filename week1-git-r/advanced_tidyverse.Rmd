@@ -36,7 +36,7 @@ sessionInfo()
 
 Konzept: `mutate()` erstellt neue Spalten basierend auf bestehenden Daten. Mit `case_when()` können wir komplexe bedingte Logik implementieren.
 
-Dataset erkunden
+Bevor komplexe Analysen durchgeführt werden, ist eine gründliche Exploration des Datensatzes unerlässlich. Die Funktionen `glimpse()`, `summary()` und `head()` bieten dabei unterschiedliche, sich ergänzende Perspektiven auf die Datenstruktur: `glimpse()` zeigt kompakt alle Variablen mit ihren Datentypen und ersten Werten, `summary()` liefert statistische Kennzahlen für numerische Variablen und Häufigkeiten für kategorische Variablen, während `head()` die ersten Zeilen im ursprünglichen Tabellenformat anzeigt.
 ```{r}
 glimpse(penguins)  # Zeigt Datentypen und erste Werte
 summary(penguins)  # Statistische Übersicht
@@ -46,8 +46,17 @@ Die ersten Zeilen anschauen
 head(penguins, 10)
 ```
 
-Erweiterte mutate() Funktionen
-mutate fügt zusätzliche Spalten an einen dataframe an
+Der `palmerpenguins`-Datensatz eignet sich hervorragend für Lernzwecke, da er saubere, realistische biologische Daten ohne komplizierte Datenqualitätsprobleme enthält und gleichzeitig interessante biologische Fragestellungen ermöglicht. Die nachfolgende erweiterte `mutate()`-Operation zeigt die Vielseitigkeit dieser Funktion bei der Erstellung neuer Variablen durch verschiedene Transformationsarten.
+
+Die bedingte Logik mit `case_when()` ermöglicht eine elegante Kategorisierung numerischer Werte in aussagekräftige Gruppen. Im Gegensatz zu verschachtelten `ifelse()`-Konstruktionen ist `case_when()` bei mehreren Bedingungen deutlich lesbarer und weniger fehleranfällig. Die Syntax folgt dem Muster `Bedingung ~ Ergebnis`, wobei die Bedingungen sequenziell geprüft werden und `TRUE ~ "Default"` als Auffangkategorie für alle nicht erfassten Fälle dient.
+
+Numerische Berechnungen wie Verhältnisse (Ratios) sind in der biologischen Forschung besonders wertvoll, da sie allometrische Beziehungen zwischen Körperteilen aufdecken können. Das Verhältnis von Schnabellänge zu -tiefe (`bill_ratio`) könnte beispielsweise Hinweise auf die Ernährungsweise geben, während das Verhältnis von Flossenlänge zu Körpermasse (`flipper_body_ratio`) Rückschlüsse auf die Schwimmeffizienz zulässt. Die Multiplikation mit 1000 dient dabei lediglich der besseren Lesbarkeit der resultierenden Werte.
+
+String-Manipulationen mit Funktionen wie `paste()` und `str_sub()` ermöglichen die Erstellung kombinierter Identifikatoren oder abgekürzter Versionen bestehender Variablen. Dies ist besonders nützlich für Visualisierungen, wo Platzbeschränkungen eine Rolle spielen, oder für die Erstellung eindeutiger Gruppierungsschlüssel.
+
+Standardisierung und Transformation sind fundamentale Schritte in der statistischen Analyse. Die Konversion von Gramm zu Kilogramm (`body_mass_kg`) verbessert die Interpretierbarkeit, während die Z-Score-Transformation (`body_mass_scaled`) die Werte auf Mittelwert 0 und Standardabweichung 1 normiert. Dies ist besonders wichtig für Machine Learning-Algorithmen, die empfindlich auf unterschiedliche Wertebereiche reagieren, und für vergleichende statistische Analysen.
+
+Das Ranking mit `dense_rank()` erstellt eine Rangfolge der Pinguine nach Körpermasse, wobei `desc()` für absteigende Sortierung sorgt und `dense_rank()` im Gegensatz zu `rank()` bei Gleichständen keine Ränge überspringt. Diese neue Variable kann später für die Identifikation extremer Werte oder für gruppierte Analysen der schwersten/leichtesten Individuen pro Art oder Insel verwendet werden.
 ```{r}
 penguins_advanced <- penguins %>%
   mutate(
@@ -156,6 +165,7 @@ print("- mass_range zeigt die Variabilität innerhalb jeder Art/Insel-Kombinatio
 print("- prop_female zeigt Geschlechterverteilung (sollte ~0.5 sein)")
 
 ```
+
 
 WARUM das wichtig ist:
 
