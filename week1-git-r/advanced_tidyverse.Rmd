@@ -172,3 +172,83 @@ WARUM das wichtig ist:
 - Deskriptive Statistik ist Grundlage jeder Datenanalyse
 - Gruppierte Analysen decken Unterschiede zwischen Subpopulationen auf
 - Diese Kennzahlen sind Basis für statistische Tests
+
+
+## 1.3 Erweiterte Filter- und Slice-Operationen
+
+### Präzise Datenauswahl mit erweiterten Filter- und Slice-Operationen
+
+Die gezielte Auswahl relevanter Datensubsets ist ein fundamentaler Schritt in jeder Datenanalyse. Während `filter()` zeilenbasiert auf logischen Bedingungen operiert, arbeitet `slice()` positionsbasiert und ermöglicht die Auswahl spezifischer Zeilen innerhalb von Gruppen. Diese beiden Ansätze ergänzen sich perfekt für komplexe Auswahlkriterien.
+
+Die erweiterte Filteroperation im Code demonstriert verschiedene Filterstrategien, die in der Praxis häufig kombiniert werden. Die Verwendung von `!is.na(sex)` entfernt Beobachtungen mit fehlenden Geschlechtsangaben – eine wichtige Datenbereinigung, da fehlende Werte spätere Analysen beeinträchtigen können. Der numerische Filter `body_mass_g > 3000` fokussiert die Analyse auf größere Pinguine, was je nach Forschungsfrage sinnvoll sein kann.
+
+Besonders mächtig ist die Kombination verschiedener Filtertypen: `species %in% c("Adelie", "Chinstrap")` nutzt den `%in%`-Operator für die Auswahl mehrerer Kategorien aus einer Liste, während `str_detect(island, "^T|^B")` mit regulären Ausdrücken arbeitet. Hier bedeutet `^T|^B` "beginnt mit T oder B", wobei das `^`-Symbol den Zeilenanfang markiert und `|` für "oder" steht. Die `between()`-Funktion bietet eine elegante Alternative zu `variable >= x & variable <= y` und verbessert die Lesbarkeit des Codes erheblich.
+
+Die anschließende Dokumentation der Filtereffekte mit `nrow()` ist eine wichtige Praxis, um zu verstehen, wie stark die Datenauswahl das ursprüngliche Dataset reduziert. Diese Information hilft bei der Bewertung der Repräsentativität der gefilterten Daten und kann auf potenzielle Probleme mit zu restriktiven Filtern hinweisen.
+
+Die `slice()`-Operationen erweitern die Auswahlmöglichkeiten um positionsbasierte Kriterien. `slice_max()` in Kombination mit `group_by()` ermöglicht es, die Top-N-Werte innerhalb jeder Gruppe zu identifizieren – hier die drei schwersten Pinguine jeder Art. Diese Technik ist besonders wertvoll für Ranking-Analysen und die Identifikation von Extremwerten innerhalb von Subgruppen. Das nachfolgende `ungroup()` ist wichtig, um sicherzustellen, dass spätere Operationen wieder auf den gesamten Datensatz wirken.
+
+Die Zufallsstichprobe mit `slice_sample()` ist ein mächtiges Werkzeug für große Datensätze, bei denen eine Vollanalyse unpraktikabel wäre. `set.seed(123)` gewährleistet dabei die Reproduzierbarkeit der Zufallsauswahl – ein kritischer Aspekt für wissenschaftliche Analysen. Die gruppierte Stichprobenziehung sorgt dafür, dass aus jeder Art die gleiche Anzahl Beobachtungen gezogen wird, was wichtig für ausgewogene Analysen ist.
+
+Die verschiedenen Slice-Varianten (`slice_head()`, `slice_tail()`, `slice_min()`) bieten flexible Möglichkeiten für unterschiedliche Auswahlszenarien. Während `slice_head()` und `slice_tail()` die ersten oder letzten Zeilen auswählen (nützlich für zeitlich sortierte Daten), ermöglicht `slice_min()` die Auswahl der kleinsten Werte einer Variablen. Die proportionale Stichprobe mit `slice_sample(prop = 0.1)` ist besonders praktisch, wenn ein fester Prozentsatz des Datensatzes benötigt wird, unabhängig von der absoluten Größe.
+
+Diese Techniken sind essentiell für explorative Datenanalysen, da sie schnelle Einblicke in Datenverteilungen und Extremwerte ermöglichen, ohne den gesamten Datensatz verarbeiten zu müssen. Gleichzeitig bilden sie die Grundlage für komplexere Analysestrategien und Hypothesentests.
+
+```{r}
+# MEHRFACH-FILTER mit verschiedenen Datentypen
+filtered_penguins <- penguins %>%
+  filter(
+    # LOGISCHE OPERATOREN
+    !is.na(sex),                      # Entferne Zeilen ohne Geschlecht
+    body_mass_g > 3000,              # Nur "größere" Pinguine
+    
+    # STRING-PATTERN mit %in%
+    species %in% c("Adelie", "Chinstrap"),  # Nur diese beiden Arten
+    
+    # REGEX mit str_detect()
+    str_detect(island, "^T|^B"),     # Inseln, die mit T oder B beginnen
+    
+    # NUMERISCHE BEREICHE mit between()
+    between(bill_length_mm, 35, 50)  # Schnabellänge zwischen 35-50mm
+  )
+
+# Wie viele Pinguine bleiben übrig?
+cat("Original:", nrow(penguins), "Pinguine\n")
+cat("Nach Filterung:", nrow(filtered_penguins), "Pinguine\n")
+cat("Anteil behalten:", round(nrow(filtered_penguins)/nrow(penguins)*100, 1), "%\n")
+
+# ========== Intelligente Slice-Operationen ==========
+
+# TOP-N AUSWAHL pro Gruppe
+top_penguins <- penguins %>%
+  filter(!is.na(body_mass_g)) %>%           # Entferne fehlende Werte
+  group_by(species) %>%                     # Für jede Art separat
+  slice_max(order_by = body_mass_g, n = 3) %>%  # Top 3 schwerste pro Art
+  ungroup() %>%                            # Gruppierung aufheben
+  arrange(species, desc(body_mass_g))      # Sortieren für bessere Übersicht
+
+print("Die 3 schwersten Pinguine jeder Art:")
+print(top_penguins %>% select(species, sex, body_mass_g, island))
+
+# ZUFÄLLIGE STICHPROBE (wichtig für große Datasets)
+set.seed(123)  # Für reproduzierbare Ergebnisse
+sample_penguins <- penguins %>%
+  group_by(species) %>%
+  slice_sample(n = 5) %>%     # 5 zufällige pro Art
+  ungroup()
+
+print("Zufällige Stichprobe (5 pro Art):")
+print(sample_penguins %>% count(species))
+
+# WEITERE SLICE-VARIANTEN
+# slice_head(n = 2)    - Erste 2 Zeilen pro Gruppe
+# slice_tail(n = 2)    - Letzte 2 Zeilen pro Gruppe  
+# slice_min(var, n=2)  - Kleinste 2 Werte einer Variable
+# slice_sample(prop=0.1) - 10% zufällige Stichprobe
+```
+
+WARUM Slice-Operationen nützlich sind:
+
+- Explorative Datenanalyse: Schneller Überblick über Extreme
+- Stichprobenziehung: Reduziere große Datasets für Tests
+- Ranking-Analysen: Finde Top-Performer, Ausreißer etc.
